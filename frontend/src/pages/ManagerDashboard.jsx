@@ -6,6 +6,7 @@ import VideoFeed from '../components/VideoFeed';
 import io from 'socket.io-client';
 import { MousePointer2, Settings, Target, Zap, Shield, Navigation } from 'lucide-react';
 import axios from 'axios';
+import DroneStatistics from '../components/DroneStatistics';
 
 const ManagerOverview = () => {
     const [drones, setDrones] = useState([]);
@@ -173,7 +174,7 @@ const ManagerDashboard = () => {
         <Layout role="manager">
             <Routes>
                 <Route path="/" element={<ManagerOverview />} />
-                <Route path="/drones" element={<div className="text-slate-400 py-20 text-center">Statut Drones (Bientôt disponible)</div>} />
+                <Route path="/drones" element={<DroneStatistics />} />
             </Routes>
         </Layout>
     );
