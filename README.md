@@ -14,23 +14,23 @@
 ##  Screenshots
 
 ### 🖥️ Web Dashboard
-![[Screenshot From 2026-02-19 23-25-02 1.png]]
+![Screenshot 1](screenshots/Screenshot%20From%202026-02-19%2023-25-02%201.png)
 
-![[Screenshot From 2026-02-19 23-30-08 1.png]]
+![Screenshot 2](screenshots/Screenshot%20From%202026-02-19%2023-30-08%201.png)
 
-![[Screenshot From 2026-02-19 23-30-16 1.png]]
+![Screenshot 3](screenshots/Screenshot%20From%202026-02-19%2023-30-16%201.png)
 
-![[Screenshot From 2026-02-19 23-30-21 1.png]]
+![Screenshot 4](screenshots/Screenshot%20From%202026-02-19%2023-30-21%201.png)
 
-![[Screenshot From 2026-02-19 23-30-28 1.png]]
+![Screenshot 5](screenshots/Screenshot%20From%202026-02-19%2023-30-28%201.png)
 
-![[Screenshot From 2026-02-19 23-30-54 1.png]]
+![Screenshot 6](screenshots/Screenshot%20From%202026-02-19%2023-30-54%201.png)
 
-![[Screenshot From 2026-02-19 23-31-17 1.png]]
+![Screenshot 7](screenshots/Screenshot%20From%202026-02-19%2023-31-17%201.png)
 
-![[Screenshot From 2026-02-19 23-41-06 1.png]]
+![Screenshot 8](screenshots/Screenshot%20From%202026-02-19%2023-41-06%201.png)
 
-![[Screenshot From 2026-02-19 23-41-14 1.png]]
+![Screenshot 9](screenshots/Screenshot%20From%202026-02-19%2023-41-14%201.png)
 
 ## 🛠️ Tech Stack
 
