@@ -7,11 +7,12 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
-    RefreshControl
+    RefreshControl,
+    Alert
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Shield, Zap, Info, LogOut, Radio } from 'lucide-react-native';
+import { Shield, Zap, Info, LogOut, Radio, PlusCircle } from 'lucide-react-native';
 
 const ManagerDashboard = ({ navigation }) => {
     const { user, logout } = useAuth();
@@ -33,7 +34,7 @@ const ManagerDashboard = ({ navigation }) => {
                 missions: missionsRes.data.filter(m => m.statut === 'en cours').length,
                 alerts: alertsRes.data.length
             });
-            setAlerts(alertsRes.data.slice(0, 10)); // Top 10 recent alerts
+            setAlerts(alertsRes.data.slice(0, 10));
         } catch (error) {
             console.error('Error fetching manager data', error);
         } finally {
@@ -81,7 +82,7 @@ const ManagerDashboard = ({ navigation }) => {
             >
                 <View style={styles.welcomeSection}>
                     <Text style={styles.welcomeText}>Tableau de bord</Text>
-                    <Text style={styles.managerName}>Manager: {user.nom}</Text>
+                    <Text style={styles.managerName}>Manager: {user?.nom}</Text>
                 </View>
 
                 {loading ? (
@@ -110,6 +111,15 @@ const ManagerDashboard = ({ navigation }) => {
                             />
                         </View>
 
+                        {/* Assign Mission Button */}
+                        <TouchableOpacity
+                            style={styles.assignButton}
+                            onPress={() => navigation.navigate('MissionAssign')}
+                        >
+                            <PlusCircle color="#0A192F" size={22} />
+                            <Text style={styles.assignButtonText}>ASSIGNER UNE MISSION</Text>
+                        </TouchableOpacity>
+
                         <Text style={styles.sectionTitle}>Alertes Récentes</Text>
 
                         <View style={styles.alertList}>
@@ -119,10 +129,16 @@ const ManagerDashboard = ({ navigation }) => {
                                         <View style={styles.alertTypeTag}>
                                             <Text style={styles.alertTypeText}>SOS</Text>
                                         </View>
-                                        <Text style={styles.alertTime}>{new Date(alert.createdAt).toLocaleTimeString()}</Text>
+                                        <Text style={styles.alertTime}>
+                                            {new Date(alert.createdAt).toLocaleTimeString()}
+                                        </Text>
                                     </View>
-                                    <Text style={styles.alertDesc}>{alert.message || 'Détection suspecte dans la zone'}</Text>
-                                    <Text style={styles.alertZone}>Zone: {alert.zone?.nom || 'Perimètre 1'}</Text>
+                                    <Text style={styles.alertDesc}>
+                                        {alert.message || 'Détection suspecte dans la zone'}
+                                    </Text>
+                                    <Text style={styles.alertZone}>
+                                        Zone: {alert.zone?.nom || 'Périmètre 1'}
+                                    </Text>
                                 </View>
                             )) : (
                                 <View style={styles.emptyContainer}>
@@ -186,7 +202,7 @@ const styles = StyleSheet.create({
     statsGrid: {
         flexDirection: 'row',
         gap: 12,
-        marginBottom: 40,
+        marginBottom: 24,
     },
     statCard: {
         flex: 1,
@@ -214,6 +230,27 @@ const styles = StyleSheet.create({
         color: '#718096',
         fontSize: 12,
         marginTop: 4,
+    },
+    assignButton: {
+        backgroundColor: '#00E5FF',
+        height: 56,
+        borderRadius: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        marginBottom: 36,
+        shadowColor: '#00E5FF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    assignButtonText: {
+        color: '#0A192F',
+        fontSize: 14,
+        fontWeight: 'bold',
+        letterSpacing: 1,
     },
     sectionTitle: {
         color: '#fff',

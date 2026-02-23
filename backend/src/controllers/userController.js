@@ -113,10 +113,39 @@ const deleteUser = async (req, res) => {
     }
 };
 
+// @desc    Update user (e.g. statut_dispo)
+// @route   PUT /api/users/:id
+// @access  Private
+const updateUser = async (req, res) => {
+    try {
+        const allowedFields = ['statut_dispo', 'nom', 'prenom', 'supabase_push_token'];
+        const updates = {};
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) updates[field] = req.body[field];
+        });
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getMe,
     getUsers,
     deleteUser,
+    updateUser,
 };
+

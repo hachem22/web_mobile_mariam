@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getMissions, createAlerte, getAlertes, createMission } = require('../controllers/missionController');
+const { getMissions, createAlerte, getAlertes, createMission, updateMission } = require('../controllers/missionController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -12,5 +12,8 @@ router.route('/')
 
 router.get('/alertes', protect, getAlertes);
 router.post('/alertes', createAlerte); // TODO: Add API Key protection
+
+router.route('/:id')
+    .put(protect, updateMission);
 
 module.exports = router;
