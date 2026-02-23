@@ -18,6 +18,7 @@ const Sidebar = ({ role }) => {
     ] : [
         { icon: LayoutDashboard, label: 'Mission Control', path: '/manager' },
         { icon: Plane, label: 'Drones', path: '/manager/drones' },
+        { icon: Users, label: 'Nageurs', path: '/manager/swimmers' },
     ];
 
     return (

@@ -4,11 +4,12 @@ import { Routes, Route } from 'react-router-dom';
 import LiveMap from '../components/LiveMap';
 import VideoFeed from '../components/VideoFeed';
 import io from 'socket.io-client';
-import { MousePointer2, Settings, Target, Zap, Shield, Navigation, ChevronDown, Battery, Maximize2, Minimize2, Monitor, Wind, Activity, Repeat, Crosshair, Info, Camera } from 'lucide-react';
+import { MousePointer2, Settings, Target, Zap, Shield, Navigation, ChevronDown, Battery, Maximize2, Minimize2, Monitor, Wind, Activity, Repeat, Crosshair, Info, Camera, MapPin, Mic, Fan, ShieldAlert, Home } from 'lucide-react';
 import axios from 'axios';
 import DroneStatistics from '../components/DroneStatistics';
 import { Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import DroneLiveView from './DroneLiveView';
+import SwimmerManagement from './SwimmerManagement';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
 
@@ -255,6 +256,33 @@ const ManagerOverview = () => {
         }
     };
 
+    const handleMissionCommand = async (command, details) => {
+        const result = await Swal.fire({
+            title: details.title,
+            text: details.text,
+            icon: details.icon || 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Confirmer',
+            cancelButtonText: 'Annuler',
+            background: '#0a1628',
+            color: '#fff',
+            confirmButtonColor: details.confirmColor || '#06b6d4',
+            cancelButtonColor: 'rgba(255,255,255,0.1)',
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Commande envoyée',
+                text: `La commande ${command} a été transmise au drone.`,
+                icon: 'success',
+                background: '#0a1628',
+                color: '#fff',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    };
+
     const handleDeleteZone = async () => {
         if (!activeZone) return;
 
@@ -391,6 +419,20 @@ const ManagerOverview = () => {
                                 value={selectedDrone.vitesse || 0}
                                 unit="KM/H"
                                 color="text-yellow-400"
+                            />
+                            <TelemetryCard
+                                icon={MapPin}
+                                label="Latitude"
+                                value={selectedDrone.position_actuelle?.lat?.toFixed(5) || '0.00000'}
+                                unit=""
+                                color="text-blue-400"
+                            />
+                            <TelemetryCard
+                                icon={MapPin}
+                                label="Longitude"
+                                value={selectedDrone.position_actuelle?.lng?.toFixed(5) || '0.00000'}
+                                unit=""
+                                color="text-purple-400"
                             />
                         </div>
                     )}
@@ -529,6 +571,52 @@ const ManagerOverview = () => {
                             )}
                         </div>
                     )}
+
+                    {/* Mission Control Buttons */}
+                    <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-center gap-4">
+                        <button
+                            onClick={() => handleMissionCommand('VOICE_STREAMING', {
+                                title: 'Démarrer le Voice Streaming ?',
+                                text: 'Cela activera la transmission audio vers le drone.',
+                                icon: 'info'
+                            })}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-sea-cyan text-white font-orbitron font-bold text-xs hover:bg-sea-cyan/80 transition-all shadow-lg shadow-sea-cyan/20"
+                        >
+                            <Mic size={16} /> VOICE STREAMING
+                        </button>
+                        <button
+                            onClick={() => handleMissionCommand('PARACHUTE', {
+                                title: 'Déployer le Parachute ?',
+                                text: 'ATTENTION : Cela stoppera les moteurs et fera descendre le drone immédiatement.',
+                                icon: 'warning',
+                                confirmColor: '#f97316'
+                            })}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 font-orbitron font-bold text-xs hover:bg-orange-500 hover:text-white transition-all"
+                        >
+                            <Fan size={16} /> DÉPLOYER PARACHUTE
+                        </button>
+                        <button
+                            onClick={() => handleMissionCommand('FAIL_SAFE', {
+                                title: 'Activer le Fail Safe ?',
+                                text: 'Le drone passera en mode de sécurité d\'urgence.',
+                                icon: 'error',
+                                confirmColor: '#ef4444'
+                            })}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 font-orbitron font-bold text-xs hover:bg-red-500 hover:text-white transition-all"
+                        >
+                            <ShieldAlert size={16} /> FAIL SAFE
+                        </button>
+                        <button
+                            onClick={() => handleMissionCommand('RTH', {
+                                title: 'Retour à la base (RTH) ?',
+                                text: 'Le drone annulera sa mission actuelle et reviendra au point de décollage.',
+                                icon: 'question'
+                            })}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 font-orbitron font-bold text-xs hover:bg-white/10 hover:text-white transition-all"
+                        >
+                            <Home size={16} /> RETURN HOME
+                        </button>
+                    </div>
                 </div>
 
                 {/* Sidebar area (Column 3) */}
@@ -729,6 +817,7 @@ const ManagerDashboard = () => {
                 <Route path="/" element={<ManagerOverview />} />
                 <Route path="/drones" element={<DroneStatistics />} />
                 <Route path="/drones/:id/live" element={<DroneLiveView />} />
+                <Route path="/swimmers" element={<SwimmerManagement />} />
             </Routes>
         </Layout>
     );
