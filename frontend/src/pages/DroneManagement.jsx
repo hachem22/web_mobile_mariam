@@ -69,8 +69,8 @@ const CreateDroneModal = ({ onClose, onCreated, managers }) => {
         }
     };
 
-    const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/20 focus:border-cyan-400 focus:outline-none transition-colors";
-    const labelCls = "text-[10px] text-white/40 uppercase tracking-widest mb-1 block";
+    const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/20 focus:border-cyan-400 focus:outline-none transition-all font-orbitron text-sm";
+    const labelCls = "text-[10px] text-white/40 uppercase tracking-widest mb-1 shadow-sm block font-orbitron";
 
     return (
         <Backdrop onClose={onClose}>

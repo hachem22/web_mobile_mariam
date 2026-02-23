@@ -11,10 +11,9 @@ const Sidebar = ({ role }) => {
     };
 
     const navItems = role === 'admin' ? [
-        { icon: LayoutDashboard, label: 'Vue d\'ensemble', path: '/admin' },
+        { icon: BarChart2, label: 'Statistiques', path: '/admin' },
         { icon: Plane, label: 'Gestion Drones', path: '/admin/drones' },
         { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
-        { icon: BarChart2, label: 'Statistiques', path: '/admin/stats' },
     ] : [
         { icon: LayoutDashboard, label: 'Mission Control', path: '/manager' },
         { icon: Plane, label: 'Drones', path: '/manager/drones' },

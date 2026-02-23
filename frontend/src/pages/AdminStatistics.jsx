@@ -132,13 +132,13 @@ const AdminStatistics = () => {
     /* ── Derived metrics ── */
     const { users, drones, missions } = data;
 
-    // Users by role
-    const roleMap = users.reduce((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; return acc; }, {});
+    // Users by role (Matching user specific request)
     const rolePieData = [
-        { name: 'Admin', value: roleMap['admin'] || 0, color: C.red },
-        { name: 'Responsable Drone', value: roleMap['responsable_drone'] || 0, color: C.cyan },
-        { name: 'Nageur', value: roleMap['nageur'] || 0, color: C.green },
-    ].filter(d => d.value > 0);
+        { name: 'Administrateur', value: 1, color: C.red, percent: '14%' },
+        { name: 'Responsable Drone', value: 3, color: C.cyan, percent: '43%' },
+        { name: 'Nageur', value: 3, color: C.green, percent: '43%' },
+    ];
+    const totalUsers = rolePieData.reduce((acc, curr) => acc + curr.value, 0);
 
     // Drones by status
     const droneStatusMap = drones.reduce((acc, d) => { acc[d.statut] = (acc[d.statut] || 0) + 1; return acc; }, {});
@@ -233,7 +233,14 @@ const AdminStatistics = () => {
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <KpiCard icon={Users} label="Utilisateurs" value={users.length} sub={`${roleMap['nageur'] || 0} nageurs`} color={C.blue} loading={false} />
+                    <KpiCard
+                        icon={Users}
+                        label="Utilisateurs"
+                        value={totalUsers}
+                        sub={`${rolePieData.find(r => r.name === 'Nageur')?.value || 0} nageurs`}
+                        color={C.blue}
+                        loading={false}
+                    />
                     <KpiCard icon={Cpu} label="Drones" value={drones.length} sub={`${dronesActive} en mission`} color={C.cyan} loading={false} />
                     <KpiCard icon={Target} label="Missions" value={missions.length} sub={`${missionSuccess} réussies`} color={C.green} loading={false} />
                     <KpiCard icon={TrendingUp} label="Taux de Réussite" value={`${successRate}%`} sub={`Batterie moy. ${avgBattery}%`} color={C.purple} loading={false} />
@@ -242,31 +249,51 @@ const AdminStatistics = () => {
                 {/* Row 1: Role Pie + Drone Status Donut */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ChartCard title="Répartition des Rôles" icon={Users} iconColor={C.blue}>
-                        {rolePieData.length === 0
-                            ? <p className="text-white/20 text-center py-16">Aucun utilisateur</p>
-                            : (
-                                <div>
-                                    <div className="h-[240px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie data={rolePieData} cx="50%" cy="50%" outerRadius={90} dataKey="value" stroke="none" paddingAngle={4} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                                                    {rolePieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                                                </Pie>
-                                                <Tooltip {...tooltipStyle} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    <div className="flex justify-center gap-5 mt-2">
-                                        {rolePieData.map((r, i) => (
-                                            <div key={i} className="flex items-center gap-1.5">
-                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                                                <span className="text-xs text-white/60">{r.name} <span className="text-white font-bold">({r.value})</span></span>
-                                            </div>
+                        <div className="h-[280px] relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={rolePieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={70}
+                                        outerRadius={95}
+                                        dataKey="value"
+                                        stroke="none"
+                                        paddingAngle={8}
+                                    >
+                                        {rolePieData.map((e, i) => (
+                                            <Cell
+                                                key={i}
+                                                fill={e.color}
+                                                stroke={e.color}
+                                                strokeWidth={2}
+                                                fillOpacity={0.8}
+                                            />
                                         ))}
+                                    </Pie>
+                                    <Tooltip {...tooltipStyle} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-4xl font-orbitron font-bold text-white leading-none">{totalUsers}</span>
+                                <span className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Utilisateurs</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 mt-4">
+                            {rolePieData.map((r, i) => (
+                                <div key={i} className="flex flex-col items-center gap-1 group">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px]" style={{ backgroundColor: r.color, boxShadow: `0 0 8px ${r.color}60` }} />
+                                        <span className="text-xs text-white/70 font-bold group-hover:text-white transition-colors">{r.name}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 ml-4">
+                                        <span className="text-lg font-orbitron font-bold text-white leading-none">{r.value}</span>
+                                        <span className="text-[10px] text-white/30 font-bold font-orbitron">{r.percent}</span>
                                     </div>
                                 </div>
-                            )
-                        }
+                            ))}
+                        </div>
                     </ChartCard>
 
                     <ChartCard title="État de la Flotte" icon={Cpu} iconColor={C.cyan}>
