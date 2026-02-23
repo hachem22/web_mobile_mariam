@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Plane, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Plane, LogOut, BarChart2 } from 'lucide-react';
 
 const Sidebar = ({ role }) => {
     const navigate = useNavigate();
@@ -14,6 +14,7 @@ const Sidebar = ({ role }) => {
         { icon: LayoutDashboard, label: 'Vue d\'ensemble', path: '/admin' },
         { icon: Plane, label: 'Gestion Drones', path: '/admin/drones' },
         { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
+        { icon: BarChart2, label: 'Statistiques', path: '/admin/stats' },
     ] : [
         { icon: LayoutDashboard, label: 'Mission Control', path: '/manager' },
         { icon: Plane, label: 'Drones', path: '/manager/drones' },

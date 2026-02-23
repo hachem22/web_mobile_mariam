@@ -49,9 +49,12 @@ const getAlertes = async (req, res) => {
 // @access  Private (Manager)
 const createMission = async (req, res) => {
     try {
+        console.log('Creating mission with body:', req.body);
+        console.log('User ID:', req.user?._id || req.user?.id);
+
         const mission = await Mission.create({
             ...req.body,
-            responsable_id: req.user.id,
+            responsable_id: req.user?._id || req.user?.id,
             statut: 'affectee'
         });
 
@@ -60,7 +63,11 @@ const createMission = async (req, res) => {
 
         res.status(201).json(mission);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Mission creation error:', error);
+        res.status(400).json({
+            message: error.message,
+            errors: error.errors
+        });
     }
 };
 

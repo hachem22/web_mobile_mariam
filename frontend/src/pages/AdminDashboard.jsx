@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from '../components/Layout';
 import UserManagement from './UserManagement';
 import DroneManagement from './DroneManagement';
+import AdminStatistics from './AdminStatistics';
+import DroneLiveView from './DroneLiveView';
 
 const AdminOverview = () => (
     <div>
@@ -31,6 +33,8 @@ const AdminDashboard = () => {
                 <Route path="/" element={<AdminOverview />} />
                 <Route path="/drones" element={<DroneManagement />} />
                 <Route path="/users" element={<UserManagement />} />
+                <Route path="/stats" element={<AdminStatistics />} />
+                <Route path="/drones/:id/live" element={<DroneLiveView />} />
             </Routes>
         </Layout>
     );

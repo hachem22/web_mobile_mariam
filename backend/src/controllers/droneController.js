@@ -24,6 +24,22 @@ const getDrones = async (req, res) => {
     }
 };
 
+// @desc    Get drone by ID
+// @route   GET /api/drones/:id
+// @access  Private
+const getDroneById = async (req, res) => {
+    try {
+        const drone = await Drone.findById(req.params.id);
+        if (drone) {
+            res.json(drone);
+        } else {
+            res.status(404).json({ message: 'Drone non trouvé' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Update drone status (webhook)
 // @route   PUT /api/drones/:id/status
 // @access  Public (API Key protected)
@@ -86,6 +102,7 @@ const deleteDrone = async (req, res) => {
 module.exports = {
     registerDrone,
     getDrones,
+    getDroneById,
     updateDroneStatus,
     updateDrone,
     deleteDrone
