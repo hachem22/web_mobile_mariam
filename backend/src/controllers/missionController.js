@@ -64,9 +64,44 @@ const createMission = async (req, res) => {
     }
 };
 
+// @desc    Update a mission status
+// @route   PUT /api/missions/:id
+// @access  Private
+const updateMission = async (req, res) => {
+    try {
+        const mission = await Mission.findById(req.params.id);
+        if (!mission) {
+            return res.status(404).json({ message: 'Mission non trouvée' });
+        }
+
+        const allowedFields = ['statut', 'notes', 'date_debut', 'date_fin'];
+        const updates = {};
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) updates[field] = req.body[field];
+        });
+
+        // Set date_fin when mission is complete
+        if (updates.statut === 'terminee' || updates.statut === 'victime_secourue') {
+            updates.date_fin = new Date();
+        }
+
+        const updated = await Mission.findByIdAndUpdate(
+            req.params.id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        ).populate('nageur_id', 'nom prenom');
+
+        res.json(updated);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getMissions,
     createAlerte,
     getAlertes,
-    createMission
+    createMission,
+    updateMission
 };
+

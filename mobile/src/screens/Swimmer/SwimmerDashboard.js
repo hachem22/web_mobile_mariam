@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { MapPin, Navigation, LogOut, ChevronRight, Activity } from 'lucide-react-native';
+import { MapPin, Navigation, LogOut, ChevronRight, Activity, Shield } from 'lucide-react-native';
 
 const SwimmerDashboard = ({ navigation }) => {
     const { user, logout } = useAuth();
@@ -23,8 +23,11 @@ const SwimmerDashboard = ({ navigation }) => {
     const fetchMissions = async () => {
         try {
             const response = await api.get('/missions');
-            // Filter missions assigned to this swimmer or pending
-            setMissions(response.data);
+            // Filter missions assigned to this swimmer
+            const myMissions = response.data.filter(
+                m => m.nageur_id === user._id || m.nageur === user._id
+            );
+            setMissions(myMissions.length > 0 ? myMissions : response.data);
         } catch (error) {
             console.error('Error fetching missions', error);
         } finally {
@@ -79,7 +82,9 @@ const SwimmerDashboard = ({ navigation }) => {
                 </View>
                 <View style={styles.detailItem}>
                     <Activity color="#00E5FF" size={16} />
-                    <Text style={styles.detailText}>Dernière mise à jour: {new Date(item.updatedAt).toLocaleTimeString()}</Text>
+                    <Text style={styles.detailText}>
+                        Mise à jour: {new Date(item.updatedAt).toLocaleTimeString()}
+                    </Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -88,12 +93,17 @@ const SwimmerDashboard = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.welcome}>Bonjour,</Text>
-                    <Text style={styles.userName}>{user.nom} {user.prenom}</Text>
+                <View style={styles.headerLeft}>
+                    <View style={styles.avatarContainer}>
+                        <Shield color="#00E5FF" size={20} />
+                    </View>
+                    <View>
+                        <Text style={styles.welcome}>Bonjour,</Text>
+                        <Text style={styles.userName}>{user?.nom} {user?.prenom}</Text>
+                    </View>
                 </View>
                 <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-                    <LogOut color="#F56565" size={24} />
+                    <LogOut color="#F56565" size={22} />
                 </TouchableOpacity>
             </View>
 
@@ -116,7 +126,9 @@ const SwimmerDashboard = ({ navigation }) => {
                         }
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
-                                <Text style={styles.emptyText}>Aucune mission active pour le moment.</Text>
+                                <Text style={styles.emptyIcon}>🌊</Text>
+                                <Text style={styles.emptyTitle}>Aucune mission active</Text>
+                                <Text style={styles.emptyText}>Vous serez notifié lors de l'assignation d'une mission.</Text>
                             </View>
                         }
                     />
@@ -133,40 +145,58 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         alignItems: 'center',
         padding: 24,
         paddingTop: Platform.OS === 'android' ? 48 : 24,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    avatarContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(0, 229, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     welcome: {
         color: '#A0AEC0',
-        fontSize: 16,
+        fontSize: 13,
     },
     userName: {
         color: '#fff',
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: 'bold',
     },
     logoutButton: {
-        padding: 8,
+        padding: 10,
         borderRadius: 12,
         backgroundColor: 'rgba(245, 101, 101, 0.1)',
     },
     content: {
         flex: 1,
         paddingHorizontal: 24,
+        paddingTop: 24,
     },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     sectionTitle: {
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
-        letterSpacing: 1,
+        letterSpacing: 0.5,
     },
     list: {
         paddingBottom: 24,
@@ -224,9 +254,20 @@ const styles = StyleSheet.create({
         padding: 48,
         alignItems: 'center',
     },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
     emptyText: {
         color: '#718096',
         textAlign: 'center',
+        lineHeight: 22,
     }
 });
 

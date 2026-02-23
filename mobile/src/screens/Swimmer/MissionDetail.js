@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     StyleSheet,
     View,
@@ -9,17 +9,21 @@ import {
     Alert,
     Platform
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Video, ResizeMode } from 'expo-av';
 import { ChevronLeft, MapPin, Navigation, CheckCircle, Clock, Camera, User } from 'lucide-react-native';
 import api from '../../services/api';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = 'http://192.168.1.24:5000';
 
 const MissionDetail = ({ route, navigation }) => {
     const { mission } = route.params;
     const [statut, setStatut] = useState(mission.statut);
     const [loading, setLoading] = useState(false);
     const [swimmerPos, setSwimmerPos] = useState(null);
+    const socketRef = useRef(null);
 
     // Support both formats (legacy and new)
     const victimLocation = mission.victime_position ? {
@@ -31,6 +35,9 @@ const MissionDetail = ({ route, navigation }) => {
     });
 
     useEffect(() => {
+        // Connect socket
+        socketRef.current = io(SOCKET_URL, { transports: ['websocket'] });
+
         let subscription;
         const startTracking = async () => {
             let { status } = await Location.requestForegroundPermissionsAsync();
@@ -45,16 +52,31 @@ const MissionDetail = ({ route, navigation }) => {
                     distanceInterval: 5, // Update every 5 meters
                 },
                 (location) => {
-                    setSwimmerPos({
+                    const pos = {
                         latitude: location.coords.latitude,
                         longitude: location.coords.longitude,
-                    });
+                    };
+                    setSwimmerPos(pos);
+
+                    // Send real-time position to backend via socket
+                    if (socketRef.current) {
+                        socketRef.current.emit('nageur_position', {
+                            missionId: mission._id,
+                            position: {
+                                lat: pos.latitude,
+                                lng: pos.longitude,
+                            }
+                        });
+                    }
                 }
             );
         };
 
         startTracking();
-        return () => subscription?.remove();
+        return () => {
+            subscription?.remove();
+            socketRef.current?.disconnect();
+        };
     }, []);
 
     const updateStatus = async (newStatus) => {
@@ -62,7 +84,20 @@ const MissionDetail = ({ route, navigation }) => {
         try {
             await api.put(`/missions/${mission._id}`, { statut: newStatus });
             setStatut(newStatus);
-            Alert.alert('Succès', `Statut mis à jour: ${newStatus}`);
+
+            // When mission is completed, mark the swimmer as available
+            if (newStatus === 'terminee') {
+                try {
+                    await api.put(`/users/${mission.nageur_id}`, { statut_dispo: 'disponible' });
+                } catch (e) {
+                    console.warn('Could not update swimmer status:', e.message);
+                }
+            }
+
+            Alert.alert('Succès', newStatus === 'terminee'
+                ? '✅ Mission terminée ! Votre statut est maintenant : Disponible'
+                : `Statut mis à jour: ${newStatus}`
+            );
         } catch (error) {
             console.error('Error updating mission status', error);
             Alert.alert('Erreur', 'Impossible de mettre à jour le statut');
@@ -70,6 +105,7 @@ const MissionDetail = ({ route, navigation }) => {
             setLoading(false);
         }
     };
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -84,13 +120,13 @@ const MissionDetail = ({ route, navigation }) => {
             <ScrollView style={styles.content}>
                 <View style={styles.mapContainer}>
                     <MapView
-                        provider={PROVIDER_GOOGLE}
+                        provider={PROVIDER_DEFAULT}
                         style={styles.map}
                         initialRegion={{
-                            latitude: (victimLocation.latitude + (swimmerPos?.latitude || victimLocation.latitude)) / 2,
-                            longitude: (victimLocation.longitude + (swimmerPos?.longitude || victimLocation.longitude)) / 2,
-                            latitudeDelta: Math.abs(victimLocation.latitude - (swimmerPos?.latitude || victimLocation.latitude)) * 2 || 0.01,
-                            longitudeDelta: Math.abs(victimLocation.longitude - (swimmerPos?.longitude || victimLocation.longitude)) * 2 || 0.01,
+                            latitude: victimLocation.latitude,
+                            longitude: victimLocation.longitude,
+                            latitudeDelta: 0.02,
+                            longitudeDelta: 0.02,
                         }}
                         customMapStyle={darkMapStyle}
                     >
@@ -153,14 +189,19 @@ const MissionDetail = ({ route, navigation }) => {
                             <View style={styles.recDot} />
                             <Text style={styles.videoText}>LIVE - DRONE ALPHA</Text>
                         </View>
-                    </div>
+                    </View>
                 </View>
 
                 <View style={styles.infoSection}>
                     <View style={styles.titleRow}>
                         <Text style={styles.missionId}>MISSION #{mission._id.slice(-6)}</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: statut === 'terminée' ? '#48BB7820' : '#F6E05E20', borderColor: statut === 'terminée' ? '#48BB78' : '#F6E05E' }]}>
-                            <Text style={[styles.statusText, { color: statut === 'terminée' ? '#48BB78' : '#F6E05E' }]}>{statut.toUpperCase()}</Text>
+                        <View style={[styles.statusBadge, {
+                            backgroundColor: statut === 'terminee' ? '#48BB7820' : '#F6E05E20',
+                            borderColor: statut === 'terminee' ? '#48BB78' : '#F6E05E'
+                        }]}>
+                            <Text style={[styles.statusText, {
+                                color: statut === 'terminee' ? '#48BB78' : '#F6E05E'
+                            }]}>{statut.toUpperCase()}</Text>
                         </View>
                     </View>
 
@@ -184,11 +225,11 @@ const MissionDetail = ({ route, navigation }) => {
                     <Text style={styles.sectionTitle}>Actions</Text>
 
                     <View style={styles.actionsContainer}>
-                        {statut !== 'terminée' && (
+                        {statut !== 'terminee' && (
                             <>
                                 <TouchableOpacity
                                     style={[styles.actionButton, styles.primaryButton]}
-                                    onPress={() => updateStatus('terminée')}
+                                    onPress={() => updateStatus('terminee')}
                                     disabled={loading}
                                 >
                                     <CheckCircle color="#fff" size={20} />
@@ -198,7 +239,6 @@ const MissionDetail = ({ route, navigation }) => {
                                 <TouchableOpacity
                                     style={[styles.actionButton, styles.secondaryButton]}
                                     onPress={() => {
-                                        // Open external maps app
                                         Alert.alert('Navigation', 'Démarrage du guidage GPS...');
                                     }}
                                 >
@@ -208,7 +248,7 @@ const MissionDetail = ({ route, navigation }) => {
                             </>
                         )}
 
-                        {statut === 'terminée' && (
+                        {statut === 'terminee' && (
                             <View style={styles.completedState}>
                                 <CheckCircle color="#48BB78" size={32} />
                                 <Text style={styles.completedText}>Mission accomplie avec succès</Text>
