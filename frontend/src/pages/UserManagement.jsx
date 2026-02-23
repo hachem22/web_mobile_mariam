@@ -26,17 +26,26 @@ const ModalCard = ({ children }) => (
 /* ─── Create User Modal ─────────────────────────────────────────────── */
 const CreateUserModal = ({ onClose, onCreated }) => {
     const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', password: '', role: 'nageur' });
+    const [photo, setPhoto] = useState(null);
     const [message, setMessage] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-
     const handleSubmit = async e => {
         e.preventDefault();
         setLoading(true);
+        const data = new FormData();
+        Object.keys(formData).forEach(key => data.append(key, formData[key]));
+        if (photo) data.append('photo', photo);
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post('/api/users', formData, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.post('/api/users', data, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
             setMessage({ type: 'success', text: 'Utilisateur créé avec succès ✓' });
             setTimeout(() => { onCreated(); onClose(); }, 1200);
         } catch (err) {
@@ -99,6 +108,27 @@ const CreateUserModal = ({ onClose, onCreated }) => {
                                 <option value="responsable_drone">🚁 Responsable Drone (Web)</option>
                             </select>
                         </div>
+                        <div>
+                            <label className={labelCls}>Photo de profil (Optionnel)</label>
+                            <div className="relative group">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={e => setPhoto(e.target.files[0])}
+                                    className="hidden"
+                                    id="photo-upload"
+                                />
+                                <label
+                                    htmlFor="photo-upload"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white/40 group-hover:bg-white/10 group-hover:border-cyan-400/50 transition-all cursor-pointer flex items-center justify-between text-xs font-orbitron"
+                                >
+                                    <span>{photo ? photo.name : 'Choisir une image...'}</span>
+                                    <div className="w-6 h-6 bg-cyan-400/20 rounded-md flex items-center justify-center">
+                                        <Hash className="w-3.5 h-3.5 text-cyan-400" />
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
 
                         <div className="flex gap-3 pt-2">
                             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white hover:bg-white/5 transition-all text-sm font-medium">
@@ -153,10 +183,18 @@ const UserDetailModal = ({ user, onClose }) => {
                 <div className="p-8">
                     {/* Header */}
                     <div className="flex items-center gap-5 mb-8">
-                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', boxShadow: '0 8px 32px rgba(6,182,212,0.35)' }}>
-                            {(user.prenom?.[0] || '?').toUpperCase()}
-                        </div>
+                        {user.photo ? (
+                            <img
+                                src={`http://localhost:5000${user.photo}`}
+                                alt={user.prenom}
+                                className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 shadow-lg border border-white/10"
+                            />
+                        ) : (
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white flex-shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', boxShadow: '0 8px 32px rgba(6,182,212,0.35)' }}>
+                                {(user.prenom?.[0] || '?').toUpperCase()}
+                            </div>
+                        )}
                         <div>
                             <h3 className="text-2xl font-orbitron font-bold text-white">{user.prenom} {user.nom}</h3>
                             <p className="text-sm text-white/40 mt-0.5">{user.email}</p>
@@ -270,10 +308,18 @@ const UserManagement = () => {
                                 >
                                     <td className="py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
-                                                style={{ background: 'linear-gradient(135deg,#06b6d420,#3b82f620)', border: '1px solid rgba(6,182,212,0.3)' }}>
-                                                {(user.prenom?.[0] || '?').toUpperCase()}
-                                            </div>
+                                            {user.photo ? (
+                                                <img
+                                                    src={`http://localhost:5000${user.photo}`}
+                                                    alt={user.prenom}
+                                                    className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-white/20"
+                                                />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
+                                                    style={{ background: 'linear-gradient(135deg,#06b6d420,#3b82f620)', border: '1px solid rgba(6,182,212,0.3)' }}>
+                                                    {(user.prenom?.[0] || '?').toUpperCase()}
+                                                </div>
+                                            )}
                                             <div>
                                                 <div className="text-white font-bold">{user.prenom} {user.nom}</div>
                                                 <div className="text-xs text-sea-light/40">{user.email}</div>

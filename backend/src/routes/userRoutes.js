@@ -9,9 +9,10 @@ const {
     updateUser
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 router.route('/')
-    .post(registerUser)
+    .post(upload.single('photo'), registerUser)
     .get(protect, getUsers);
 
 router.post('/login', loginUser);

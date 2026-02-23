@@ -1,4 +1,5 @@
 const express = require('express'); // Server entry point
+const path = require('path');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
@@ -26,6 +27,7 @@ const server = http.createServer(app);
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));

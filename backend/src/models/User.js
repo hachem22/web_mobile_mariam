@@ -51,6 +51,10 @@ const UserSchema = new mongoose.Schema({
     actif: {
         type: Boolean,
         default: true
+    },
+    photo: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true

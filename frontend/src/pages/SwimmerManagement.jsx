@@ -139,9 +139,17 @@ const SwimmerManagement = () => {
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sea-cyan/20 to-blue-600/20 border border-white/10 flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                                                {(swimmer.prenom?.[0] || '?').toUpperCase()}
-                                            </div>
+                                            {swimmer.photo ? (
+                                                <img
+                                                    src={`http://localhost:5000${swimmer.photo}`}
+                                                    alt={swimmer.prenom}
+                                                    className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-lg"
+                                                />
+                                            ) : (
+                                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sea-cyan/20 to-blue-600/20 border border-white/10 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                                                    {(swimmer.prenom?.[0] || '?').toUpperCase()}
+                                                </div>
+                                            )}
                                             <div>
                                                 <h3 className="text-lg font-orbitron font-bold text-white group-hover:text-sea-cyan transition-colors">
                                                     {swimmer.prenom} {swimmer.nom}

@@ -31,7 +31,8 @@ const registerUser = async (req, res) => {
             prenom,
             email,
             password: hashedPassword,
-            role: role || 'nageur'
+            role: role || 'nageur',
+            photo: req.file ? `/uploads/${req.file.filename}` : null
         });
 
         if (user) {
@@ -41,6 +42,7 @@ const registerUser = async (req, res) => {
                 prenom: user.prenom,
                 email: user.email,
                 role: user.role,
+                photo: user.photo,
                 token: generateToken(user.id),
             });
         } else {
@@ -118,7 +120,7 @@ const deleteUser = async (req, res) => {
 // @access  Private
 const updateUser = async (req, res) => {
     try {
-        const allowedFields = ['statut_dispo', 'nom', 'prenom', 'supabase_push_token'];
+        const allowedFields = ['statut_dispo', 'nom', 'prenom', 'supabase_push_token', 'photo'];
         const updates = {};
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) updates[field] = req.body[field];
