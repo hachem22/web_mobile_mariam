@@ -23,4 +23,19 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Add a response interceptor to handle errors (like 401 Unauthorized)
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        if (error.response && error.response.status === 401) {
+            console.log('Session expired, clearing storage...');
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('user');
+            // Note: Ideally, we should also update the AuthContext state here.
+            // But clearing storage will force a logout on the next app reload/check.
+        }
+        return Promise.reject(error);
+    }
+);
+
 export default api;

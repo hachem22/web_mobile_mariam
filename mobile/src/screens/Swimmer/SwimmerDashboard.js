@@ -24,12 +24,16 @@ const SwimmerDashboard = ({ navigation }) => {
         try {
             const response = await api.get('/missions');
             // Filter missions assigned to this swimmer
-            const myMissions = response.data.filter(
-                m => m.nageur_id === user._id || m.nageur === user._id
-            );
-            setMissions(myMissions.length > 0 ? myMissions : response.data);
+            const myMissions = response.data.filter(m => {
+                const nageurId = m.nageur_id?._id || m.nageur_id || m.nageur;
+                return nageurId && nageurId.toString() === user._id.toString();
+            });
+            setMissions(myMissions);
         } catch (error) {
             console.error('Error fetching missions', error);
+            if (error.response && error.response.status === 401) {
+                logout();
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);

@@ -91,6 +91,12 @@ const updateMission = async (req, res) => {
             { new: true, runValidators: true }
         ).populate('nageur_id', 'nom prenom');
 
+        // When mission is completed, mark the swimmer as available
+        if (updates.statut === 'terminee' || updates.statut === 'victime_secourue') {
+            const User = require('../models/User'); // Import User model if not already imported
+            await User.findByIdAndUpdate(updated.nageur_id, { statut_dispo: 'disponible' });
+        }
+
         res.json(updated);
     } catch (error) {
         res.status(400).json({ message: error.message });
