@@ -12,22 +12,29 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { MapPin, Navigation, LogOut, ChevronRight, Activity, Shield } from 'lucide-react-native';
+import io from 'socket.io-client';
+import { Audio } from 'expo-av';
+import { MapPin, Navigation, LogOut, ChevronRight, Activity, Shield, AlertTriangle, Info } from 'lucide-react-native';
+import SwimmerOnboarding from '../../components/SwimmerOnboarding';
 
 const SwimmerDashboard = ({ navigation }) => {
     const { user, logout } = useAuth();
     const [missions, setMissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [isRedAlert, setIsRedAlert] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(true); // Show automatically on first load
 
     const fetchMissions = async () => {
         try {
             const response = await api.get('/missions');
-            // Filter missions assigned to this swimmer
-            const myMissions = response.data.filter(m => {
-                const nageurId = m.nageur_id?._id || m.nageur_id || m.nageur;
-                return nageurId && nageurId.toString() === user._id.toString();
-            });
+            const myMissions = response.data
+                .filter(m => {
+                    const nageurId = m.nageur_id?._id || m.nageur_id || m.nageur;
+                    return nageurId && nageurId.toString() === user._id.toString();
+                })
+                .sort((a, b) => new Date(b.createdAt || b.updatedAt || b.date_creation) - new Date(a.createdAt || a.updatedAt || a.date_creation));
+
             setMissions(myMissions);
         } catch (error) {
             console.error('Error fetching missions', error);
@@ -42,6 +49,57 @@ const SwimmerDashboard = ({ navigation }) => {
 
     useEffect(() => {
         fetchMissions();
+
+        // Socket.IO Setup
+        const API_BASE = api.defaults.baseURL.replace('/api', ''); // Extract base URL from api instance
+        const socket = io(API_BASE);
+
+        socket.on('connect', () => {
+            console.log('✅ Connected to socket server');
+            if (user && user._id) {
+                socket.emit('join_user_room', user._id);
+            }
+        });
+
+        socket.on('mission_assigned', async (missionData) => {
+            console.log('🚨 Nouvelle mission assignée !', missionData);
+
+            // Play sound alert
+            try {
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: false,
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: true,
+                    shouldDuckAndroid: true,
+                    playThroughEarpieceAndroid: false,
+                });
+
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../../../assets/alert.mp3')
+                );
+
+                sound.setOnPlaybackStatusUpdate(async (status) => {
+                    if (status.didJustFinish) {
+                        await sound.unloadAsync();
+                    }
+                });
+
+                await sound.playAsync();
+            } catch (error) {
+                console.error('Error playing sound', error);
+            }
+
+            // Déclencher l'alerte visuelle rouge
+            setIsRedAlert(true);
+            setTimeout(() => setIsRedAlert(false), 3000);
+
+            // Fetch list again to sync
+            fetchMissions();
+        });
+
+        return () => {
+            socket.disconnect();
+        };
     }, []);
 
     const onRefresh = () => {
@@ -95,50 +153,72 @@ const SwimmerDashboard = ({ navigation }) => {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <View style={styles.avatarContainer}>
-                        <Shield color="#00E5FF" size={20} />
+        <>
+            <SwimmerOnboarding visible={showOnboarding} onClose={() => setShowOnboarding(false)} />
+
+            <SafeAreaView style={[styles.container, isRedAlert && { backgroundColor: 'rgba(245, 101, 101, 0.4)' }]}>
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.avatarContainer}>
+                            <Shield color="#00E5FF" size={20} />
+                        </View>
+                        <View>
+                            <Text style={styles.welcome}>Bonjour,</Text>
+                            <Text style={styles.userName}>{user?.nom} {user?.prenom}</Text>
+                        </View>
                     </View>
-                    <View>
-                        <Text style={styles.welcome}>Bonjour,</Text>
-                        <Text style={styles.userName}>{user?.nom} {user?.prenom}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                        <TouchableOpacity onPress={() => setShowOnboarding(true)} style={styles.logoutButton}>
+                            <Info color="#00E5FF" size={22} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+                            <LogOut color="#F56565" size={22} />
+                        </TouchableOpacity>
                     </View>
                 </View>
-                <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-                    <LogOut color="#F56565" size={22} />
-                </TouchableOpacity>
-            </View>
 
-            <View style={styles.content}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Missions assignées</Text>
-                    <Navigation color="#00E5FF" size={20} />
+                <View style={styles.content}>
+                    {/* Nouveau bouton Déclaration Urgence */}
+                    <TouchableOpacity
+                        style={styles.emergencyBtn}
+                        onPress={() => navigation.navigate('Declaration')}
+                    >
+                        <AlertTriangle color="#fff" size={24} />
+                        <View style={styles.emergencyBtnTextContainer}>
+                            <Text style={styles.emergencyBtnTitle}>DÉCLARER UNE URGENCE</Text>
+                            <Text style={styles.emergencyBtnSub}>Personne perdue repérée</Text>
+                        </View>
+                        <ChevronRight color="#fff" size={24} />
+                    </TouchableOpacity>
+
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Missions assignées</Text>
+                        <Navigation color="#00E5FF" size={20} />
+                    </View>
+
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#00E5FF" style={styles.loader} />
+                    ) : (
+                        <FlatList
+                            data={missions}
+                            renderItem={renderMissionItem}
+                            keyExtractor={item => item._id}
+                            contentContainerStyle={styles.list}
+                            refreshControl={
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00E5FF" />
+                            }
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Text style={styles.emptyIcon}>🌊</Text>
+                                    <Text style={styles.emptyTitle}>Aucune mission active</Text>
+                                    <Text style={styles.emptyText}>Vous serez notifié lors de l'assignation d'une mission.</Text>
+                                </View>
+                            }
+                        />
+                    )}
                 </View>
-
-                {loading ? (
-                    <ActivityIndicator size="large" color="#00E5FF" style={styles.loader} />
-                ) : (
-                    <FlatList
-                        data={missions}
-                        renderItem={renderMissionItem}
-                        keyExtractor={item => item._id}
-                        contentContainerStyle={styles.list}
-                        refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00E5FF" />
-                        }
-                        ListEmptyComponent={
-                            <View style={styles.emptyContainer}>
-                                <Text style={styles.emptyIcon}>🌊</Text>
-                                <Text style={styles.emptyTitle}>Aucune mission active</Text>
-                                <Text style={styles.emptyText}>Vous serez notifié lors de l'assignation d'une mission.</Text>
-                            </View>
-                        }
-                    />
-                )}
-            </View>
-        </SafeAreaView>
+            </SafeAreaView>
+        </>
     );
 };
 
@@ -272,6 +352,34 @@ const styles = StyleSheet.create({
         color: '#718096',
         textAlign: 'center',
         lineHeight: 22,
+    },
+    emergencyBtn: {
+        backgroundColor: '#F56565',
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 24,
+        shadowColor: '#F56565',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    emergencyBtnTextContainer: {
+        flex: 1,
+        marginLeft: 16,
+    },
+    emergencyBtnTitle: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
+    },
+    emergencyBtnSub: {
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontSize: 12,
+        marginTop: 2,
     }
 });
 

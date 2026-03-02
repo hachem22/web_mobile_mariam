@@ -8,6 +8,13 @@ const socketManager = (io) => {
             console.log(`User ${socket.id} joined room: ${room}`);
         });
 
+        // Join specific room for a user
+        socket.on('join_user_room', (userId) => {
+            const roomName = `user_${userId}`;
+            socket.join(roomName);
+            console.log(`👤 User ${userId} joined room: ${roomName}`);
+        });
+
         // Handle Drone Position Updates (from Python/Simulation)
         socket.on('drone_position_update', (data) => {
             // data: { drone_id, lat, lng, altitude, batterie, status }

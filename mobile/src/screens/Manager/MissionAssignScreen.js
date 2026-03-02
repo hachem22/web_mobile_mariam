@@ -30,7 +30,7 @@ const MissionAssignScreen = ({ navigation }) => {
                     api.get('/users'),
                     api.get('/zones').catch(() => ({ data: [] })),
                 ]);
-                const swimmers = usersRes.data.filter(u => u.role === 'nageur');
+                const swimmers = usersRes.data.filter(u => u.role === 'nageur' && u.statut_dispo === 'disponible');
                 setNageurs(swimmers);
                 setZones(zonesRes.data);
             } catch (error) {
@@ -112,6 +112,8 @@ const MissionAssignScreen = ({ navigation }) => {
                                 ]}>
                                     {nageur.nom} {nageur.prenom}
                                 </Text>
+                                {/* Green Available Dot */}
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#48BB78', marginRight: 8 }} />
                                 {selectedNageur?._id === nageur._id && (
                                     <View style={styles.activeIndicator} />
                                 )}

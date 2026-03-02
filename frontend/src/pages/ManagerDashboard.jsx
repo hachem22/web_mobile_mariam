@@ -4,14 +4,14 @@ import { Routes, Route } from 'react-router-dom';
 import LiveMap from '../components/LiveMap';
 import VideoFeed from '../components/VideoFeed';
 import io from 'socket.io-client';
-import { MousePointer2, Settings, Target, Zap, Shield, Navigation, ChevronDown, Battery, Maximize2, Minimize2, Monitor, Wind, Activity, Repeat, Crosshair, Info, Camera, MapPin, Mic, Fan, ShieldAlert, Home } from 'lucide-react';
+import { MousePointer2, Settings, Target, Zap, Shield, Navigation, ChevronDown, Battery, Maximize2, Minimize2, Monitor, Wind, Activity, Repeat, Crosshair, Info, Camera, MapPin, Mic, Fan, ShieldAlert, Home, LogOut, Radio, PlusCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 import DroneStatistics from '../components/DroneStatistics';
-import { Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import DroneLiveView from './DroneLiveView';
 import SwimmerManagement from './SwimmerManagement';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
+import Joyride, { STATUS } from 'react-joyride';
 
 const TelemetryCard = ({ icon: Icon, label, value, unit, color = "text-sea-cyan" }) => (
     <div className="bg-white/5 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-3 group hover:border-white/20 transition-all">
@@ -118,18 +118,67 @@ const AssignModal = ({ alert, swimmers, drones, activeZone, onClose, onAssign })
     );
 };
 
+const StatCard = ({ title, value, icon: Icon, color }) => (
+    <div className="flex items-center gap-2">
+        <Icon size={16} style={{ color }} />
+        <div>
+            <p className="text-[8px] uppercase tracking-widest text-white/40">{title}</p>
+            <p className="text-sm font-bold text-white">{value}</p>
+        </div>
+    </div>
+);
+
 const ManagerOverview = () => {
     const { user } = useAuth();
     const [drones, setDrones] = useState([]);
     const [mode, setMode] = useState('manuel'); // 'manuel' | 'autonome'
     const [patrolPoints, setPatrolPoints] = useState([]);
     const [selectedDrone, setSelectedDrone] = useState(null);
-    const [alertes, setAlertes] = useState([]);
+    const [alertes, setAlertes] = useState([]); // Renamed from 'alerts' to 'alertes' to match original code
     const [swimmers, setSwimmers] = useState([]);
     const [zones, setZones] = useState([]);
     const [showAssignModal, setShowAssignModal] = useState(null);
     const [layoutMode, setLayoutMode] = useState('standard'); // 'standard' | 'video_focus' | 'theater'
     const [isSwapped, setIsSwapped] = useState(false);
+    const [stats, setStats] = useState({ drones: 0, missions: 0, alerts: 0, declarations: 0 });
+    const [declarations, setDeclarations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [isRedAlert, setIsRedAlert] = useState(false);
+
+    // Joyride Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps] = useState([
+        {
+            target: '.tour-step-1',
+            content: 'Bienvenue sur Mission Control ! Sélectionnez un drone ici pour voir, contrôler et déployer ses missions.',
+            disableBeacon: true,
+            placement: 'bottom',
+        },
+        {
+            target: '.tour-step-2',
+            content: 'Consultez la télémétrie en temps réel (Altitude, Vitesse, Batterie, GPS).',
+            placement: 'bottom',
+        },
+        {
+            target: '.tour-step-3',
+            content: 'Ce bouton permet d\'inverser la caméra du drone avec la vue cartographique globale !',
+            placement: 'bottom',
+        },
+        {
+            target: '.tour-step-4',
+            content: 'C\'est ici qu\'apparaissent les alertes IA et surtout les Déclarations d\'urgence des nageurs. Vous pourrez déployer un drone en un clic !',
+            placement: 'left',
+        }
+    ]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+        }
+    };
+
 
     const activeZone = useMemo(() => {
         if (!selectedDrone) return null;
@@ -167,11 +216,13 @@ const ManagerOverview = () => {
                 const token = localStorage.getItem('token');
                 const headers = { Authorization: `Bearer ${token}` };
 
-                const [dronesRes, alertesRes, swimmersRes, zonesRes] = await Promise.all([
+                const [dronesRes, alertesRes, swimmersRes, zonesRes, missionsRes, declarationsRes] = await Promise.all([
                     axios.get('/api/drones', { headers }),
                     axios.get('/api/missions/alertes', { headers }),
                     axios.get('/api/users', { headers }),
-                    axios.get('/api/zones', { headers })
+                    axios.get('/api/zones', { headers }),
+                    axios.get('/api/missions', { headers }),
+                    axios.get('/api/declarations', { headers })
                 ]);
 
                 const assignedDrones = dronesRes.data.filter(d =>
@@ -179,19 +230,66 @@ const ManagerOverview = () => {
                 );
 
                 setDrones(assignedDrones);
-                setAlertes(alertesRes.data.filter(a => !a.traitee));
+                setAlertes(alertesRes.data.filter(a => !a.traitee).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
                 setSwimmers(swimmersRes.data.filter(u => u.role === 'nageur'));
                 setZones(zonesRes.data);
+
+                // Filter for pending declarations and sort by newest first
+                setDeclarations(
+                    declarationsRes.data
+                        .filter(d => d.statut === 'en_attente')
+                        .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt))
+                );
+
+                setStats({
+                    drones: assignedDrones.length,
+                    missions: missionsRes.data.filter(m => m.statut === 'en cours').length,
+                    alerts: alertesRes.data.filter(a => !a.traitee).length,
+                    declarations: declarationsRes.data.filter(d => d.statut === 'en_attente').length
+                });
 
                 if (assignedDrones.length > 0) setSelectedDrone(assignedDrones[0]);
             } catch (err) {
                 console.error(err);
+            } finally {
+                setLoading(false);
             }
         };
         fetchData();
 
+        socket.on('new_declaration', (declaration) => {
+            // Jouer le son d'alerte
+            try {
+                const audio = new window.Audio('/alert.mp3');
+                audio.play().catch(e => console.log('Audio play failed:', e));
+            } catch (err) {
+                console.error('Audio error:', err);
+            }
+
+            setDeclarations(prev => [declaration, ...prev].slice(0, 5));
+            setStats(prev => ({ ...prev, declarations: prev.declarations + 1 }));
+
+            // Déclencher l'interface rouge
+            setIsRedAlert(true);
+            setTimeout(() => {
+                setIsRedAlert(false);
+            }, 3000);
+        });
+
+        socket.on('new_mission', (mission) => {
+            setStats(prev => ({ ...prev, missions: prev.missions + 1 }));
+            // Refresh data to keep drone assignments & swimmers synced
+            fetchData();
+
+            // Déclencher l'interface rouge
+            setIsRedAlert(true);
+            setTimeout(() => {
+                setIsRedAlert(false);
+            }, 3000);
+        });
+
         return () => socket.disconnect();
-    }, []);
+    }, [user]);
 
     const handleMapClick = (latlng) => {
         if (mode === 'autonome' && !activeZone && patrolPoints.length < 4) {
@@ -393,11 +491,95 @@ const ManagerOverview = () => {
         }
     };
 
+    const handleDeployDrone = async (decl) => {
+        if (!selectedDrone) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Aucun drone',
+                text: 'Veuillez sélectionner un drone avant de le déployer.',
+                background: '#0a1628',
+                color: '#fff'
+            });
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const headers = { Authorization: `Bearer ${token}` };
+
+            // 1. Marquer la déclaration comme traitée
+            await axios.put(`/api/declarations/${decl._id}`, { statut: 'traitee' }, { headers });
+
+            // 2. Créer une "Alerte" automatique pour le drone actif
+            await axios.post('/api/missions/alertes', {
+                drone_id: selectedDrone._id,
+                type: 'Intervention sur Déclaration S.O.S',
+                position: decl.position,
+                image_url: decl.photo_url || 'https://images.unsplash.com/photo-1544377193-33dcf4d68fb5',
+                confiance: 1.0,
+                timestamp: new Date()
+            }, { headers });
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Drone Déployé !',
+                text: `Le drone ${selectedDrone.nom} est en route vers la position S.O.S.`,
+                background: '#0a1628',
+                color: '#fff'
+            });
+
+            // Enlever de l'affichage local vu qu'elle est traitée
+            setDeclarations(prev => prev.filter(d => d._id !== decl._id));
+            setStats(prev => ({ ...prev, declarations: Math.max(0, prev.declarations - 1) }));
+
+            // Revenir sur la map si on est dans un autre mode
+            setIsSwapped(false);
+        } catch (err) {
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erreur',
+                text: 'Erreur lors du déploiement : ' + (err.response?.data?.message || err.message),
+                background: '#0a1628',
+                color: '#fff'
+            });
+        }
+    };
+
     return (
-        <div className="space-y-6">
+        <div className={`space-y-6 transition-colors duration-500 rounded-lg ${isRedAlert ? 'bg-red-900/40 shadow-[inset_0_0_100px_rgba(220,38,38,0.5)]' : ''}`}>
+            {/* Joyride Tour Component */}
+            <Joyride
+                steps={tourSteps}
+                run={runTour}
+                continuous={true}
+                showProgress={true}
+                showSkipButton={true}
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#0a1628',
+                        backgroundColor: '#0a1628',
+                        overlayColor: 'rgba(0, 0, 0, 0.7)',
+                        primaryColor: '#00E5FF',
+                        textColor: '#fff',
+                        zIndex: 10000,
+                    }
+                }}
+                locale={{ back: 'Précédent', close: 'Fermer', last: 'Terminer', next: 'Suivant', skip: 'Passer' }}
+            />
+
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <h1 className="text-3xl font-orbitron font-bold text-white">Mission Control</h1>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-orbitron font-bold text-white">Mission Control</h1>
+                    <button
+                        onClick={() => setRunTour(true)}
+                        className="flex items-center gap-2 bg-sea-cyan/10 hover:bg-sea-cyan/20 text-sea-cyan px-3 py-1.5 rounded-lg border border-sea-cyan/30 transition-all text-xs font-bold"
+                    >
+                        <Info size={14} /> Guide
+                    </button>
+                </div>
+                <div className="flex items-center gap-6 tour-step-2">
                     {selectedDrone && (
                         <div className="hidden md:flex gap-3">
                             <TelemetryCard
@@ -436,7 +618,7 @@ const ManagerOverview = () => {
                             />
                         </div>
                     )}
-                    <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10 gap-2">
+                    <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10 gap-2 tour-step-3">
                         <button
                             onClick={() => setIsSwapped(!isSwapped)}
                             className="p-2 rounded-lg text-white/40 hover:text-sea-cyan hover:bg-white/5 transition-all"
@@ -466,9 +648,46 @@ const ManagerOverview = () => {
             <div className={`grid grid-cols-1 ${layoutMode === 'theater' ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6 transition-all duration-500`}>
                 {/* Main Content Area (Column 1 & 2) */}
                 <div className={`${layoutMode === 'standard' ? 'lg:col-span-2' : layoutMode === 'video_focus' ? 'lg:col-span-1' : 'lg:col-span-1 hidden'} space-y-6 transition-all duration-500`}>
+                    {/* Drones list (tour-step-1) */}
+                    {!isSwapped && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 tour-step-1">
+                            {drones.map(drone => (
+                                <button
+                                    key={drone._id || drone.id}
+                                    onClick={() => setSelectedDrone(drone)}
+                                    className={`relative overflow-hidden p-4 rounded-xl border text-left transition-all ${selectedDrone?._id === drone._id
+                                            ? 'bg-sea-cyan/10 border-sea-cyan shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                                            : 'bg-white/5 border-white/10 hover:border-white/20'
+                                        }`}
+                                >
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h3 className="text-white font-orbitron font-bold text-sm tracking-wider">{drone.nom}</h3>
+                                            <p className="text-[10px] text-white/40 uppercase mt-0.5">{drone.modele || 'Modèle standard'}</p>
+                                        </div>
+                                        <div className={`p-1.5 rounded-lg ${drone.statut === 'en_vol' ? 'bg-green-500/20 text-green-400' : 'bg-sea-cyan/20 text-sea-cyan'}`}>
+                                            <Battery size={14} />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className={`w-2 h-2 rounded-full ${drone.statut === 'en_vol' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-sea-cyan shadow-[0_0_8px_#06b6d4]'}`} />
+                                        <span className="text-xs text-white/70 uppercase tracking-wider">{drone.statut}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-[10px] font-mono text-white/50">
+                                        <span className="flex items-center gap-1"><Navigation size={10} /> {drone.altitude || 0}m</span>
+                                        <span className="flex items-center gap-1"><Wind size={10} /> {drone.vitesse || 0}km/h</span>
+                                    </div>
+                                    {selectedDrone?._id === drone._id && (
+                                        <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-sea-cyan/20 to-transparent blur-xl rounded-full" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {isSwapped ? (
                         /* Video Feed in Left/Large Area */
-                        <div id="video-container-large" className="aspect-video rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative group bg-black">
+                        <div id="video-container-large" className="aspect-video rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative group bg-black tour-step-6">
                             <VideoFeed src={selectedDrone?.adresse_ip_camera} />
                             {/* Overlay Controls */}
                             <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between">
@@ -513,7 +732,7 @@ const ManagerOverview = () => {
                         </div>
                     ) : (
                         /* Map in Left/Large Area */
-                        <div className="h-[500px] rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
+                        <div className="h-[500px] rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative tour-step-5">
                             <LiveMap drones={drones} onMapClick={handleMapClick} patrolPoints={patrolPoints} theme="light" zones={zones} />
 
                             {/* Mode autonomous controls (remain anchored to map) */}
@@ -573,7 +792,7 @@ const ManagerOverview = () => {
                     )}
 
                     {/* Mission Control Buttons */}
-                    <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-center gap-4">
+                    <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-center gap-4 tour-step-7">
                         <button
                             onClick={() => handleMissionCommand('VOICE_STREAMING', {
                                 title: 'Démarrer le Voice Streaming ?',
@@ -620,10 +839,10 @@ const ManagerOverview = () => {
                 </div>
 
                 {/* Sidebar area (Column 3) */}
-                <div className={`${layoutMode === 'standard' ? 'lg:col-span-1' : layoutMode === 'video_focus' ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-500`}>
+                <div className={`${layoutMode === 'standard' ? 'lg:col-span-1' : layoutMode === 'video_focus' ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-500 tour-step-4`}>
                     {!isSwapped ? (
                         /* Default: Video Feed in Right/Small Area */
-                        <div id="video-container" className="aspect-video rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative group bg-black">
+                        <div id="video-container" className="aspect-video rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative group bg-black tour-step-6">
                             <VideoFeed src={selectedDrone?.adresse_ip_camera} />
                             <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between">
                                 <div className="flex justify-between items-start pointer-events-auto">
@@ -703,6 +922,65 @@ const ManagerOverview = () => {
                             <h3 className="text-white font-orbitron font-bold flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-orange-400" /> Alertes en attente
                             </h3>
+                            <StatCard
+                                title="Urgences"
+                                value={stats.declarations}
+                                icon={AlertTriangle}
+                                color="#F56565"
+                            />
+                        </div>
+
+                        {/* DÉCLARATIONS NAGEURS */}
+                        {declarations.length > 0 && (
+                            <>
+                                <div className="flex items-center gap-3 mb-6 mt-8">
+                                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                                    <h2 className="text-xl font-bold text-white">Déclarations Nageurs</h2>
+                                </div>
+                                <div className="flex flex-col gap-4 mb-8">
+                                    {declarations.map(decl => (
+                                        <div key={decl._id} className="bg-red-500/10 border-l-4 border-red-500 rounded-2xl p-6">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="px-3 py-1 bg-red-500 rounded-full text-xs font-bold text-white uppercase tracking-wider">
+                                                        S.O.S
+                                                    </span>
+                                                    <span className="text-red-400/80 text-sm font-medium">
+                                                        {new Date(decl.timestamp || decl.createdAt).toLocaleTimeString()}
+                                                    </span>
+                                                </div>
+                                                <div className="px-3 py-1 bg-sea-dark rounded-lg text-sm font-medium text-white border border-white/10">
+                                                    Par: {decl.nageur_id?.nom} {decl.nageur_id?.prenom}
+                                                </div>
+                                            </div>
+                                            <p className="text-white text-lg font-medium mb-4">{decl.description}</p>
+                                            <div className="flex gap-4 items-center">
+                                                <div className="text-sm font-medium text-red-200/60 bg-red-500/5 px-4 py-2 rounded-xl">
+                                                    📍 Lat: {decl.position?.lat.toFixed(4)}
+                                                </div>
+                                                <div className="text-sm font-medium text-red-200/60 bg-red-500/5 px-4 py-2 rounded-xl">
+                                                    📍 Lng: {decl.position?.lng.toFixed(4)}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handleDeployDrone(decl)}
+                                                    className="ml-auto bg-sea-cyan hover:bg-sea-cyan/80 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-lg shadow-sea-cyan/20 flex items-center gap-2 cursor-pointer relative z-10"
+                                                >
+                                                    <Target size={14} /> DÉPLOYER DRONE ACTIF
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {/* ALERTES DRONES CI-DESSOUS */}
+                        <div className="flex items-center gap-3 mb-6 mt-8">
+                            <Info className="w-6 h-6 text-sea-cyan" />
+                            <h2 className="text-xl font-bold text-white">Alertes Systèmes</h2>
+                        </div>
+                        <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={handleSimulateAlert}

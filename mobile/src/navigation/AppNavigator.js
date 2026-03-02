@@ -9,6 +9,7 @@ import ManagerDashboard from '../screens/Manager/ManagerDashboard';
 import DroneTrackingScreen from '../screens/Manager/DroneTrackingScreen';
 import MissionAssignScreen from '../screens/Manager/MissionAssignScreen';
 import MissionDetail from '../screens/Swimmer/MissionDetail';
+import DeclarationScreen from '../screens/Swimmer/DeclarationScreen';
 
 const Stack = createStackNavigator();
 
@@ -30,6 +31,7 @@ const AppNavigator = () => {
                 <>
                     <Stack.Screen name="SwimmerDash" component={SwimmerDashboard} />
                     <Stack.Screen name="MissionDetail" component={MissionDetail} />
+                    <Stack.Screen name="Declaration" component={DeclarationScreen} />
                 </>
             ) : (
                 <>

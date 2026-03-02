@@ -52,6 +52,19 @@ const createMission = async (req, res) => {
         console.log('Creating mission with body:', req.body);
         console.log('User ID:', req.user?._id || req.user?.id);
 
+        const User = require('../models/User'); // Import User model to check status
+        const swimmer = await User.findById(req.body.nageur_id);
+
+        if (!swimmer) {
+            return res.status(404).json({ message: 'Nageur non trouvé' });
+        }
+
+        if (swimmer.statut_dispo !== 'disponible') {
+            return res.status(400).json({
+                message: 'Ce nageur n\'est pas disponible actuellement'
+            });
+        }
+
         const mission = await Mission.create({
             ...req.body,
             responsable_id: req.user?._id || req.user?.id,
@@ -60,6 +73,19 @@ const createMission = async (req, res) => {
 
         // Update alert status
         await Alerte.findByIdAndUpdate(req.body.alerte_id, { traitee: true });
+
+        // Update swimmer status
+        await User.findByIdAndUpdate(req.body.nageur_id, { statut_dispo: 'en_mission' });
+
+        // Emit Socket.IO event to the specific swimmer
+        const io = req.app.get('io');
+        if (io) {
+            console.log(`📡 Émission de l'événement mission_assigned vers user_${req.body.nageur_id}`);
+            io.to(`user_${req.body.nageur_id}`).emit('mission_assigned', mission);
+
+            // Also emit globally for managers to update their lists in real time
+            io.emit('new_mission', mission);
+        }
 
         res.status(201).json(mission);
     } catch (error) {

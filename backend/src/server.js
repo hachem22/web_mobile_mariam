@@ -34,6 +34,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/drones', require('./routes/droneRoutes'));
 app.use('/api/zones', require('./routes/zoneRoutes'));
 app.use('/api/missions', require('./routes/missionRoutes'));
+app.use('/api/declarations', require('./routes/declarationRoutes'));
 
 // Socket.IO Setup
 const io = new Server(server, {
